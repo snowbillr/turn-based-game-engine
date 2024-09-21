@@ -1,11 +1,8 @@
 {
-  "name": "node-typescript-boilerplate",
+  "name": "turn-based-game-engine",
   "version": "0.0.0",
-  "description": "Minimalistic boilerplate to quick-start Node.js development in TypeScript.",
+  "description": "",
   "type": "module",
-  "engines": {
-    "node": ">= 20.9 < 21"
-  },
   "devDependencies": {
     "@eslint/js": "~9.10",
     "@types/eslint__js": "~8.42",
@@ -13,14 +10,14 @@
     "@typescript-eslint/parser": "~8.5",
     "@vitest/coverage-v8": "~2.1",
     "@vitest/eslint-plugin": "~1.1",
-    "eslint-config-prettier": "~9.1",
     "eslint": "~9.10",
+    "eslint-config-prettier": "~9.1",
     "globals": "~15.9",
     "prettier": "~3.3",
     "rimraf": "~6.0",
     "ts-api-utils": "~1.3",
-    "typescript-eslint": "~8.5",
     "typescript": "~5.5",
+    "typescript-eslint": "~8.5",
     "vitest": "~2.1"
   },
   "scripts": {
@@ -31,7 +28,7 @@
     "build:watch": "tsc -w -p tsconfig.json",
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
     "lint": "eslint .",
-    "test": "vitest run unit",
+    "test": "vitest run",
     "test:coverage": "vitest run unit --coverage.enabled --coverage.all",
     "prettier": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --write",
     "prettier:check": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --check",
@@ -40,9 +37,7 @@
   "author": "Jakub Synowiec <jsynowiec@users.noreply.github.com>",
   "license": "Apache-2.0",
   "dependencies": {
+    "@inquirer/prompts": "^6.0.1",
     "tslib": "~2.7"
-  },
-  "volta": {
-    "node": "20.17.0"
   }
 }

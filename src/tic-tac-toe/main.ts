@@ -94,14 +94,16 @@ class Flow {
       this.visitedNodeIds.push(this.currentNode().id);
       this.currentNode().onStart?.(state, f);
     } else {
-      this.traversalStack.pop().onEnd?.(state, f);
+      this.currentNode().onEnd?.(state, f);
+      this.traversalStack.pop();
       if (this.traversalStack.size() === 0) {
         this.start(state, f); // empty stack means we need to restart the traversal
         return;
       }
 
       while (this.visitedNodeIds.includes(this.currentNode().id)) {
-        this.traversalStack.pop().onEnd?.(state, f);
+        this.currentNode().onEnd?.(state, f);
+        this.traversalStack.pop();
         if (this.traversalStack.size() === 0) {
           this.start(state, f); // empty stack means we need to restart the traversal
           return;
@@ -265,8 +267,8 @@ engine.defineFlow((f) => {
 
 const board = new Board();
 
-function onTurnEnd(): void {
-  console.log('Turn ended');
+function onTurnEnd(_state, f): void {
+  console.log(`Turn ended for ${f.getCurrentPlayer().name}`);
 }
 
 async function onTurnStart(_state, f): Promise<void> {

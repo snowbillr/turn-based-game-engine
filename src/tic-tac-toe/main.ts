@@ -1,6 +1,5 @@
 import { number } from '@inquirer/prompts';
 
-// import { Engine } from "../lib/engine.js";
 import { Board } from "./board.js";
 
 //=== Engine ===//
@@ -45,24 +44,42 @@ class Engine {
   }
 
   start(): void {
-    // phase/round/turn callback param
-    // const obj = {
-      // state: this.state,
-      // signals: this.signals
-    // }
+    this.flow.current.onStart?.(this.state, this)
+  }
+
+  next(): void {
+    this.flow.current.onEnd?.(this.state, this)
+    this.flow.next()
+    this.flow.current.onStart?.(this.state, this)
   }
 }
 
 //=== Flow ===//
 
 class Flow {
-  startId: string;
-  nodes: FlowNode[];
+  private _current: FlowNode;
+
+  constructor(private startId: string, private nodes: FlowNode[]) {
+    this.startId = startId;
+    this.nodes = nodes;
+
+    this._current = this.nodes.find(node => node.id === this.startId)
+  }
+
+  get current(): FlowNode {
+    return this._current;
+  }
+
+  next(): void {
+    this._current = this.nodes.find(node => node.id === this._current.nextId)
+  }
 }
 
 interface FlowNode {
   id: string;
   nextId: string;
+  onStart?: (state: State, f) => void;
+  onEnd?: (state: State, f) => void;
 }
 
 //=== FlowBuilder ===//
@@ -119,27 +136,28 @@ class FlowBuilder {
     const nodes = this.rounds.flatMap(round => {
       const turns = round.turns;
 
-      const turnNodes = turns.flatMap(turn => {
+      const turnNodes: FlowNode[] = turns.flatMap(turn => {
         return this.players.map((player, i) => {
           return {
             id: `${turn.id}::${player.name}`,
-            nextId: i === this.players.length - 1 ? round.id : `${turn.id}::${this.players[i + 1].name}`
+            nextId: i === this.players.length - 1 ? round.id : `${turn.id}::${this.players[i + 1].name}`,
+            onStart: turn.onStart,
+            onEnd: turn.onEnd
           }
         })
       })
 
-      const roundNode = {
+      const roundNode: FlowNode = {
         id: round.id,
-        nextId: turnNodes[0].id
+        nextId: turnNodes[0].id,
+        onStart: round.onStart,
+        onEnd: round.onEnd
       }
 
       return [roundNode, ...turnNodes]
     })
 
-    return {
-      startId: this.rounds[0].id,
-      nodes
-    }
+    return new Flow(this.rounds[0].id, nodes)
   }
 }
 

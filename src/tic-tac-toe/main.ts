@@ -5,31 +5,25 @@ import { Board } from './board.js';
 //=== Engine ===//
 
 interface EngineConfig {
-  players: PlayerConfig[];
+  players: Player[];
 }
 
-interface PlayerConfig {
+interface Player {
   id: string;
   name: string;
 }
 
-interface State {
-  currentPlayer: { name: string };
-}
+type State = Record<string, unknown>;
 
 class Engine {
-  private players: PlayerConfig[];
+  private players: Player[];
   private flow: Flow;
 
   private state: State;
 
   constructor(config: EngineConfig) {
     this.players = config.players;
-    this.state = {
-      currentPlayer: config.players[0],
-    };
-
-    console.log(this.state, this.players);
+    this.state = {};
   }
 
   defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder): void {
@@ -39,36 +33,60 @@ class Engine {
     console.log(this.flow);
   }
 
+  start(): void {
+    this.flow.start(this.state, this);
+  }
+
+  next(): void {
+    this.flow.next(this.state, this);
+  }
+
   gameOver(): void {
     console.log('Game over');
+  }
+
+  getCurrentPlayer(): Player {
+    return this.players.find((p) => p.id === this.flow.currentNode().playerId);
   }
 }
 
 //=== Flow ===//
 
 class Flow {
-  private _current: FlowNode;
+  private traversalStack: Stack<FlowNode> = new Stack();
+  private visitedNodeIds: string[] = [];
 
-  constructor(
-    private startId: string,
-    private nodes: FlowNode[],
-  ) {
-    this.startId = startId;
+  constructor(private nodes: FlowNode[]) {
     this.nodes = nodes;
-
-    console.log(this.startId);
-    this.debug();
   }
 
-  get current(): FlowNode {
-    return this._current;
+  start(state, f): void {
+    this.traversalStack.push(...this.nodes.reverse());
+    this.traversalStack.peek().onStart(state, f);
+    this.visitedNodeIds.push(this.traversalStack.peek().id);
   }
 
-  debug(): void {
-    this.nodes.forEach((n) => {
-      console.log(n.id);
-      console.log(n.children.map((c) => c.id));
-    });
+  next(state, f): void {
+    const previous = this.traversalStack.peek();
+
+    if (previous.children.length > 0) {
+      this.traversalStack.push(...previous.children.reverse());
+      this.traversalStack.peek().onStart?.(state, f);
+      this.visitedNodeIds.push(this.traversalStack.peek().id);
+    } else {
+      this.traversalStack.pop().onEnd?.(state, f);
+      // check for empty stack - that means traversal is over
+      while (this.visitedNodeIds.includes(this.traversalStack.peek().id)) {
+        this.traversalStack.pop().onEnd?.(state, f);
+        // check for empty stack - that means traversal is over
+      }
+      this.traversalStack.peek().onStart?.(state, f);
+      this.visitedNodeIds.push(this.traversalStack.peek().id);
+    }
+  }
+
+  currentNode(): FlowNode {
+    return this.traversalStack.peek();
   }
 }
 
@@ -77,13 +95,33 @@ interface FlowNode {
   children: FlowNode[];
 
   playerId?: string;
-  autoAdvance?: boolean;
 
   onStart?: FlowCallback;
   onEnd?: FlowCallback;
 }
 
+// TODO - when is it safe to call `next()` or `gameOver()`? on callbacks? probably not
 type FlowCallback = (state: State, f: Engine) => void;
+
+class Stack<T> {
+  private items: T[] = [];
+
+  push(...items): void {
+    this.items.push(...items);
+  }
+
+  peek(): T {
+    return this.items[this.items.length - 1];
+  }
+
+  pop(): T {
+    return this.items.pop();
+  }
+
+  size(): number {
+    return this.items.length;
+  }
+}
 
 //=== FlowBuilder ===//
 
@@ -111,13 +149,23 @@ interface FlowBuilderNode {
 class FlowBuilder {
   private nodes: FlowBuilderNode[] = [];
 
+  // TODO add convenience methods for defining nodes
+  // - method to build a node for each player
+  // - aliases for rounds, turns, etc.
+
   node(
     config: FlowBuilderNodeConfig,
     children: FlowBuilderNode[] = [],
   ): FlowBuilderNode {
     const flowNode = {
-      ...config,
+      id: config.id,
       children,
+
+      autoAdvance: config.autoAdvance ?? false,
+      playerId: config.playerId,
+
+      onStart: config.onStart,
+      onEnd: config.onEnd,
     };
 
     // don't record leaf nodes
@@ -132,17 +180,21 @@ class FlowBuilder {
   build(): Flow {
     const flowNodes = this.nodes.map((n) => this.buildFlowNode(n));
 
-    return new Flow(flowNodes[0].id, flowNodes);
+    return new Flow(flowNodes);
   }
 
   private buildFlowNode(node: FlowBuilderNode): FlowNode {
     return {
       id: node.id,
-      autoAdvance: node.autoAdvance,
-      playerId: node.playerId,
-      onStart: node.onStart,
-      onEnd: node.onEnd,
       children: node.children.map((c) => this.buildFlowNode(c)),
+      playerId: node.playerId,
+      onStart: node.autoAdvance
+        ? (state, f): void => {
+            node.onStart?.(state, f);
+            f.next();
+          }
+        : node.onStart,
+      onEnd: node.onEnd,
     };
   }
 }
@@ -169,15 +221,13 @@ engine.defineFlow((f) => {
         id: 'turn1::X',
         playerId: 'playerX',
         onStart: onTurnStart,
-        onEnd: (state) =>
-          console.log(`Turn ended for ${state.currentPlayer.name}`),
+        onEnd: onTurnEnd,
       }),
       f.node({
         id: 'turn1::O',
         playerId: 'playerO',
         onStart: onTurnStart,
-        onEnd: (state) =>
-          console.log(`Turn ended for ${state.currentPlayer.name}`),
+        onEnd: onTurnEnd,
       }),
     ],
   );
@@ -187,8 +237,12 @@ engine.defineFlow((f) => {
 
 const board = new Board();
 
-async function onTurnStart(state, f): Promise<void> {
-  console.log(`Turn started for ${state.currentPlayer.name}`);
+function onTurnEnd(): void {
+  console.log('Turn ended');
+}
+
+async function onTurnStart(_state, f): Promise<void> {
+  console.log(`Turn started for ${f.getCurrentPlayer().name}`);
 
   board.print();
 
@@ -199,7 +253,7 @@ async function onTurnStart(state, f): Promise<void> {
     yCoord = await number({ message: 'y coord:' });
   }
 
-  board.move(state.currentPlayer.name, xCoord, yCoord);
+  board.move(f.getCurrentPlayer().name, xCoord, yCoord);
 
   if (board.hasWinner()) {
     f.gameOver();
@@ -208,4 +262,4 @@ async function onTurnStart(state, f): Promise<void> {
   }
 }
 
-// engine.start();
+engine.start();

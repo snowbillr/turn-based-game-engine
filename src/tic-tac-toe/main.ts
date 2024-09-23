@@ -52,6 +52,13 @@ class Engine {
 
 //=== Flow ===//
 
+/*
+  The flow of the game is defined as a tree of nodes.
+  It is traversed depth-first as the game advances, with one step of the game resulting in visiting a new node.
+  A node's onStart callback is executed when the node is visited.
+  A node's onEnd callback is executed when all of a node's children have been visited.
+  The traversal is restarted when there are no more nodes to visit.
+*/
 class Flow {
   private traversalStack: Stack<FlowNode> = new Stack();
   private visitedNodeIds: string[] = [];
@@ -61,27 +68,47 @@ class Flow {
   }
 
   start(state, f): void {
-    this.traversalStack.push(...this.nodes.reverse());
-    this.traversalStack.peek().onStart(state, f);
-    this.visitedNodeIds.push(this.traversalStack.peek().id);
+    this.visitedNodeIds = [];
+
+    this.traversalStack.push(...this.nodes.slice().reverse());
+    this.visitedNodeIds.push(this.currentNode().id);
+    this.currentNode().onStart(state, f);
   }
 
+  /*
+    A depth-first traversal is of the node graph.
+    A stack is used to keep track of the nodes that need to be visited. When a node is visited,
+    its children are pushed onto the stack in reverse order.
+    A list of visited nodes is used to determine if a node is being exited when it returns to the top of the stack.
+  */
   next(state, f): void {
+    if (this.traversalStack.size() === 0) {
+      this.start(state, f);
+      return;
+    }
+
     const previous = this.traversalStack.peek();
 
     if (previous.children.length > 0) {
-      this.traversalStack.push(...previous.children.reverse());
-      this.traversalStack.peek().onStart?.(state, f);
-      this.visitedNodeIds.push(this.traversalStack.peek().id);
+      this.traversalStack.push(...previous.children.slice().reverse());
+      this.visitedNodeIds.push(this.currentNode().id);
+      this.currentNode().onStart?.(state, f);
     } else {
       this.traversalStack.pop().onEnd?.(state, f);
-      // check for empty stack - that means traversal is over
-      while (this.visitedNodeIds.includes(this.traversalStack.peek().id)) {
-        this.traversalStack.pop().onEnd?.(state, f);
-        // check for empty stack - that means traversal is over
+      if (this.traversalStack.size() === 0) {
+        this.start(state, f); // empty stack means we need to restart the traversal
+        return;
       }
-      this.traversalStack.peek().onStart?.(state, f);
-      this.visitedNodeIds.push(this.traversalStack.peek().id);
+
+      while (this.visitedNodeIds.includes(this.currentNode().id)) {
+        this.traversalStack.pop().onEnd?.(state, f);
+        if (this.traversalStack.size() === 0) {
+          this.start(state, f); // empty stack means we need to restart the traversal
+          return;
+        }
+      }
+      this.visitedNodeIds.push(this.currentNode().id);
+      this.currentNode().onStart?.(state, f);
     }
   }
 

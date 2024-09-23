@@ -1,67 +1,46 @@
 import { number } from '@inquirer/prompts';
 
-import { Board } from "./board.js";
+import { Board } from './board.js';
 
 //=== Engine ===//
 
 interface EngineConfig {
-  players: PlayerConfig[]
+  players: PlayerConfig[];
 }
 
 interface PlayerConfig {
-  name: string
+  id: string;
+  name: string;
 }
 
 interface State {
-  currentPlayer: { name: string }
+  currentPlayer: { name: string };
 }
 
-
 class Engine {
-  private players: { name: string }[];
+  private players: PlayerConfig[];
   private flow: Flow;
 
   private state: State;
 
-  private isStarted: boolean = false;
-
   constructor(config: EngineConfig) {
     this.players = config.players;
     this.state = {
-      currentPlayer: config.players[0]
-    }
+      currentPlayer: config.players[0],
+    };
 
-    console.log(this.state)
+    console.log(this.state, this.players);
   }
 
   defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder): void {
-    const flowBuilder = new FlowBuilder(this.players)
-    this.flow = flowFn(flowBuilder).build()
+    const flowBuilder = new FlowBuilder();
+    this.flow = flowFn(flowBuilder).build();
 
-    console.log(this.flow)
-  }
-
-  start(): void {
-    this.next()
-  }
-
-  next(): void {
-    if (this.isStarted) {
-      this.flow.current.onEnd?.(this.state, this) // don't allow .next() to be called from here
-    } else {
-      this.isStarted = true
-    }
-
-    this.flow.next()
-    this.flow.current.onStart?.(this.state, this) // if autoAdvance, don't allow call to .next()
-
-    if (this.flow.current.autoAdvance) {
-      this.next()
-    }
+    console.log(this.flow);
   }
 
   gameOver(): void {
-    console.log('Game over')
+    console.log('Game over');
   }
 }
 
@@ -70,28 +49,36 @@ class Engine {
 class Flow {
   private _current: FlowNode;
 
-  constructor(private startId: string, private nodes: FlowNode[]) {
+  constructor(
+    private startId: string,
+    private nodes: FlowNode[],
+  ) {
     this.startId = startId;
     this.nodes = nodes;
+
+    console.log(this.startId);
+    this.debug();
   }
 
   get current(): FlowNode {
     return this._current;
   }
 
-  next(): void {
-    if (this._current == null) {
-      this._current = this.nodes.find(node => node.id === this.startId)
-    } else {
-      this._current = this.nodes.find(node => node.id === this._current.nextId)
-    }
+  debug(): void {
+    this.nodes.forEach((n) => {
+      console.log(n.id);
+      console.log(n.children.map((c) => c.id));
+    });
   }
 }
 
 interface FlowNode {
   id: string;
-  nextId: string;
+  children: FlowNode[];
+
+  playerId?: string;
   autoAdvance?: boolean;
+
   onStart?: FlowCallback;
   onEnd?: FlowCallback;
 }
@@ -100,116 +87,110 @@ type FlowCallback = (state: State, f: Engine) => void;
 
 //=== FlowBuilder ===//
 
-interface FlowBuilderRoundConfig {
+interface FlowBuilderNodeConfig {
   id: string;
+
+  playerId?: string;
   autoAdvance?: boolean;
+
   onStart?: FlowCallback;
   onEnd?: FlowCallback;
 }
 
-interface FlowBuilderTurnConfig {
+interface FlowBuilderNode {
   id: string;
-  onStart?: FlowCallback;
-  onEnd?: FlowCallback;
-}
+  children: FlowBuilderNode[];
 
-interface FlowBuilderRound {
-  id: string;
-  onStart?: FlowCallback;
-  onEnd?: FlowCallback;
+  playerId?: string;
   autoAdvance?: boolean;
-  turns: FlowBuilderTurn[];
-}
 
-interface FlowBuilderTurn {
-  id: string;
   onStart?: FlowCallback;
   onEnd?: FlowCallback;
 }
 
 class FlowBuilder {
-  private rounds: FlowBuilderRound[] = [];
-  private turns: FlowBuilderTurn[] = [];
+  private nodes: FlowBuilderNode[] = [];
 
-  constructor(private players: { name: string }[]) {}
-
-  round(config: FlowBuilderRoundConfig, turn: FlowBuilderTurnConfig): FlowBuilderRoundConfig {
-    const round = {
+  node(
+    config: FlowBuilderNodeConfig,
+    children: FlowBuilderNode[] = [],
+  ): FlowBuilderNode {
+    const flowNode = {
       ...config,
-      turns: [turn]
+      children,
     };
 
-    this.rounds.push(round);
+    // don't record leaf nodes
+    // leaf nodes will be built from `children` references
+    if (children.length > 0) {
+      this.nodes.push(flowNode);
+    }
 
-    return round;
-  }
-
-  turn(config: FlowBuilderTurnConfig): FlowBuilderTurnConfig {
-    this.turns.push(config)
-
-    return config;
+    return flowNode;
   }
 
   build(): Flow {
-    const nodes = this.rounds.flatMap(round => {
-      const turns = round.turns;
+    const flowNodes = this.nodes.map((n) => this.buildFlowNode(n));
 
-      const turnNodes: FlowNode[] = turns.flatMap(turn => {
-        return this.players.map((player, i) => {
-          return {
-            id: `${turn.id}::${player.name}`,
-            nextId: i === this.players.length - 1 ? round.id : `${turn.id}::${this.players[i + 1].name}`,
-            onStart: turn.onStart,
-            onEnd: turn.onEnd
-          }
-        })
-      })
+    return new Flow(flowNodes[0].id, flowNodes);
+  }
 
-      const roundNode: FlowNode = {
-        id: round.id,
-        nextId: turnNodes[0].id,
-        autoAdvance: round.autoAdvance,
-        onStart: round.onStart,
-        onEnd: round.onEnd
-      }
-
-      return [roundNode, ...turnNodes]
-    })
-
-    return new Flow(this.rounds[0].id, nodes)
+  private buildFlowNode(node: FlowBuilderNode): FlowNode {
+    return {
+      id: node.id,
+      autoAdvance: node.autoAdvance,
+      playerId: node.playerId,
+      onStart: node.onStart,
+      onEnd: node.onEnd,
+      children: node.children.map((c) => this.buildFlowNode(c)),
+    };
   }
 }
 
 //=== Game ===//
 
 const engine = new Engine({
-  players: [{ name: 'X' }, { name: 'O' }],
-})
+  players: [
+    { id: 'playerX', name: 'X' },
+    { id: 'playerO', name: 'O' },
+  ],
+});
 
-engine.defineFlow(f => {
-  f.round(
+engine.defineFlow((f) => {
+  f.node(
     {
       id: 'round1',
       autoAdvance: true,
       onStart: () => console.log('Round started'),
-      onEnd: () => console.log('Round ended')
+      onEnd: () => console.log('Round ended'),
     },
-    f.turn({
-      id: 'turn1',
-      onStart: onTurnStart,
-      onEnd: (state) => console.log(`Turn ended for ${state.currentPlayer.name}`),
-    })
-  )
+    [
+      f.node({
+        id: 'turn1::X',
+        playerId: 'playerX',
+        onStart: onTurnStart,
+        onEnd: (state) =>
+          console.log(`Turn ended for ${state.currentPlayer.name}`),
+      }),
+      f.node({
+        id: 'turn1::O',
+        playerId: 'playerO',
+        onStart: onTurnStart,
+        onEnd: (state) =>
+          console.log(`Turn ended for ${state.currentPlayer.name}`),
+      }),
+    ],
+  );
 
   return f;
-})
+});
 
-const board = new Board()
+const board = new Board();
 
 async function onTurnStart(state, f): Promise<void> {
-  console.log(`Turn started for ${state.currentPlayer.name}`)
+  console.log(`Turn started for ${state.currentPlayer.name}`);
 
-  board.print()
+  board.print();
 
   let xCoord = -1;
   let yCoord = -1;
@@ -218,13 +199,13 @@ async function onTurnStart(state, f): Promise<void> {
     yCoord = await number({ message: 'y coord:' });
   }
 
-  board.move(state.currentPlayer.name, xCoord, yCoord)
+  board.move(state.currentPlayer.name, xCoord, yCoord);
 
   if (board.hasWinner()) {
-    f.gameOver()
+    f.gameOver();
   } else {
-    f.next()
+    f.next();
   }
 }
 
-engine.start()
+// engine.start();

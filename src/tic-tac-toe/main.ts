@@ -6,7 +6,6 @@ import { Board } from "./board.js";
 
 interface EngineConfig {
   players: PlayerConfig[]
-  signals: string[]
 }
 
 interface PlayerConfig {
@@ -20,10 +19,11 @@ interface State {
 
 class Engine {
   private players: { name: string }[];
-  // private signals: Signal[];
   private flow: Flow;
 
   private state: State;
+
+  private isStarted: boolean = false;
 
   constructor(config: EngineConfig) {
     this.players = config.players;
@@ -32,8 +32,6 @@ class Engine {
     }
 
     console.log(this.state)
-
-    // this.signals = config.signals.map(signalName => new Signal(signalName))
   }
 
   defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder): void {
@@ -44,13 +42,26 @@ class Engine {
   }
 
   start(): void {
-    this.flow.current.onStart?.(this.state, this)
+    this.next()
   }
 
   next(): void {
-    this.flow.current.onEnd?.(this.state, this)
+    if (this.isStarted) {
+      this.flow.current.onEnd?.(this.state, this) // don't allow .next() to be called from here
+    } else {
+      this.isStarted = true
+    }
+
     this.flow.next()
-    this.flow.current.onStart?.(this.state, this)
+    this.flow.current.onStart?.(this.state, this) // if autoAdvance, don't allow call to .next()
+
+    if (this.flow.current.autoAdvance) {
+      this.next()
+    }
+  }
+
+  gameOver(): void {
+    console.log('Game over')
   }
 }
 
@@ -62,8 +73,6 @@ class Flow {
   constructor(private startId: string, private nodes: FlowNode[]) {
     this.startId = startId;
     this.nodes = nodes;
-
-    this._current = this.nodes.find(node => node.id === this.startId)
   }
 
   get current(): FlowNode {
@@ -71,42 +80,51 @@ class Flow {
   }
 
   next(): void {
-    this._current = this.nodes.find(node => node.id === this._current.nextId)
+    if (this._current == null) {
+      this._current = this.nodes.find(node => node.id === this.startId)
+    } else {
+      this._current = this.nodes.find(node => node.id === this._current.nextId)
+    }
   }
 }
 
 interface FlowNode {
   id: string;
   nextId: string;
-  onStart?: (state: State, f) => void;
-  onEnd?: (state: State, f) => void;
+  autoAdvance?: boolean;
+  onStart?: FlowCallback;
+  onEnd?: FlowCallback;
 }
+
+type FlowCallback = (state: State, f: Engine) => void;
 
 //=== FlowBuilder ===//
 
 interface FlowBuilderRoundConfig {
   id: string;
-  onStart?: (state: State, f) => void;
-  onEnd?: (state: State, f) => void;
+  autoAdvance?: boolean;
+  onStart?: FlowCallback;
+  onEnd?: FlowCallback;
 }
 
 interface FlowBuilderTurnConfig {
   id: string;
-  onStart?: (state: State, f) => void;
-  onEnd?: (state: State, f) => void;
+  onStart?: FlowCallback;
+  onEnd?: FlowCallback;
 }
 
 interface FlowBuilderRound {
   id: string;
-  onStart?: (state: State, f) => void;
-  onEnd?: (state: State, f) => void;
+  onStart?: FlowCallback;
+  onEnd?: FlowCallback;
+  autoAdvance?: boolean;
   turns: FlowBuilderTurn[];
 }
 
 interface FlowBuilderTurn {
   id: string;
-  onStart?: (state: State, f) => void;
-  onEnd?: (state: State, f) => void;
+  onStart?: FlowCallback;
+  onEnd?: FlowCallback;
 }
 
 class FlowBuilder {
@@ -150,6 +168,7 @@ class FlowBuilder {
       const roundNode: FlowNode = {
         id: round.id,
         nextId: turnNodes[0].id,
+        autoAdvance: round.autoAdvance,
         onStart: round.onStart,
         onEnd: round.onEnd
       }
@@ -165,21 +184,20 @@ class FlowBuilder {
 
 const engine = new Engine({
   players: [{ name: 'X' }, { name: 'O' }],
-  signals: ['gameOver']
 })
 
 engine.defineFlow(f => {
   f.round(
     {
       id: 'round1',
-      // repeat: true,
+      autoAdvance: true,
       onStart: () => console.log('Round started'),
       onEnd: () => console.log('Round ended')
     },
     f.turn({
       id: 'turn1',
       onStart: onTurnStart,
-      // onEnd: (state) => console.log(`Turn ended for ${state.currentPlayer.name}`),
+      onEnd: (state) => console.log(`Turn ended for ${state.currentPlayer.name}`),
     })
   )
 
@@ -203,8 +221,10 @@ async function onTurnStart(state, f): Promise<void> {
   board.move(state.currentPlayer.name, xCoord, yCoord)
 
   if (board.hasWinner()) {
-    f.signals.gameOver()
+    f.gameOver()
   } else {
     f.next()
   }
 }
+
+engine.start()

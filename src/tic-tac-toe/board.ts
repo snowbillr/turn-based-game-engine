@@ -10,7 +10,8 @@ export class Board {
   }
 
   isValidMove(x: number, y: number) {
-    return this.state[y][x] === null
+    if (x === -1 && y === -1) return false;
+    return this.state[y][x] === null;
   }
 
   move(player: string, x: number, y: number) {

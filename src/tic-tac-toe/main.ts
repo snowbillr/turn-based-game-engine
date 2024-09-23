@@ -128,6 +128,7 @@ interface FlowNode {
 }
 
 // TODO - when is it safe to call `next()` or `gameOver()`? on callbacks? probably not
+// probably need to define what `f` is for each identified callback
 type FlowCallback = (state: State, f: Engine) => void;
 
 class Stack<T> {

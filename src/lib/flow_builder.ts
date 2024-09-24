@@ -5,38 +5,39 @@ import {
   FlowOnStartCallback,
 } from './flow.js';
 
-interface FlowBuilderNodeConfig {
+// TODO - can the node config and the node types be combined?
+interface FlowBuilderNodeConfig<State> {
   id: string;
 
   playerId?: string;
   autoAdvance?: boolean;
 
-  onStart?: FlowOnStartCallback;
+  onStart?: FlowOnStartCallback<State>;
   onEnd?: FlowOnEndCallback;
 }
 
-interface FlowBuilderNode {
+interface FlowBuilderNode<State> {
   id: string;
-  children: FlowBuilderNode[];
+  children: FlowBuilderNode<State>[];
 
   playerId?: string;
   autoAdvance?: boolean;
 
-  onStart?: FlowOnStartCallback;
+  onStart?: FlowOnStartCallback<State>;
   onEnd?: FlowOnEndCallback;
 }
 
-export class FlowBuilder {
-  private nodes: FlowBuilderNode[] = [];
+export class FlowBuilder<State> {
+  private nodes: FlowBuilderNode<State>[] = [];
 
   // TODO add convenience methods for defining nodes
   // - method to build a node for each player
   // - aliases for rounds, turns, etc.
 
   node(
-    config: FlowBuilderNodeConfig,
-    children: FlowBuilderNode[] = [],
-  ): FlowBuilderNode {
+    config: FlowBuilderNodeConfig<State>,
+    children: FlowBuilderNode<State>[] = [],
+  ): FlowBuilderNode<State> {
     const flowNode = {
       id: config.id,
       children,
@@ -57,20 +58,20 @@ export class FlowBuilder {
     return flowNode;
   }
 
-  build(): Flow {
+  build(): Flow<State> {
     const flowNodes = this.nodes.map((n) => this.buildFlowNode(n));
 
     return new Flow(flowNodes);
   }
 
-  private buildFlowNode(node: FlowBuilderNode): FlowNode {
+  private buildFlowNode(node: FlowBuilderNode<State>): FlowNode<State> {
     return {
       id: node.id,
       children: node.children.map((c) => this.buildFlowNode(c)),
       playerId: node.playerId,
       onStart: node.autoAdvance
-        ? async (state, f) => {
-            await node.onStart?.(state, f);
+        ? async (f) => {
+            await node.onStart?.(f);
             await f.next();
           }
         : node.onStart,

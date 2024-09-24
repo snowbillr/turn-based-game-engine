@@ -1,15 +1,22 @@
 import { number } from '@inquirer/prompts';
 
-import { Engine, State } from '../lib/engine.js';
+import { Engine } from '../lib/engine.js';
 
 import { Board } from './board.js';
-import { FlowContext } from '../lib/flow.js';
+import { FlowOnStartCallback } from '../lib/flow.js';
 
-const engine = new Engine({
+interface GameState {
+  board: Board;
+}
+
+const engine = new Engine<GameState>({
   players: [
     { id: 'playerX', name: 'X' },
     { id: 'playerO', name: 'O' },
   ],
+  initialState: {
+    board: new Board()
+  },
 });
 
 engine.defineFlow((f) => {
@@ -39,27 +46,26 @@ engine.defineFlow((f) => {
   return f;
 });
 
-const board = new Board();
-
 function onTurnEnd() {
   console.log('Turn ended.');
 }
 
-async function onTurnStart(_state: State, f: FlowContext) {
+// TODO - this shouldn't need to declare its param type
+const onTurnStart: FlowOnStartCallback<GameState> = async (f) => {
   console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
 
-  board.print();
+  f.state.board.print();
 
   let xCoord = -1;
   let yCoord = -1;
-  while (!board.isValidMove(xCoord, yCoord)) {
+  while (!f.state.board.isValidMove(xCoord, yCoord)) {
     xCoord = (await number({ message: 'x coord:' })) ?? -1;
     yCoord = (await number({ message: 'y coord:' })) ?? -1;
   }
 
-  board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);
+  f.state.board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);
 
-  if (board.hasWinner()) {
+  if (f.state.board.hasWinner()) {
     f.gameOver();
   } else {
     await f.next();

@@ -31,7 +31,7 @@
     "test:coverage": "vitest run unit --coverage.enabled --coverage.all",
     "test:watch": "vitest unit"
   },
-  "author": "Jakub Synowiec <jsynowiec@users.noreply.github.com>",
+  "author": "Bill Reed <snowbillr@users.noreply.github.com>",
   "license": "Apache-2.0",
   "dependencies": {
     "@inquirer/prompts": "^6.0.1",

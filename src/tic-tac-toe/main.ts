@@ -17,7 +17,7 @@ type State = Record<string, unknown>;
 
 class Engine {
   private players: Player[];
-  private flow: Flow;
+  private flow: Flow | undefined;
 
   private state: State;
 
@@ -26,27 +26,36 @@ class Engine {
     this.state = {};
   }
 
-  defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder): void {
+  defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder) {
     const flowBuilder = new FlowBuilder();
     this.flow = flowFn(flowBuilder).build();
 
     console.log(this.flow);
   }
 
-  start(): void {
-    this.flow.start(this.state, this);
+  async start() {
+    if (this.flow == null)
+      throw new Error('#defineFlow must be called before using the engine.');
+
+    await this.flow.start(this.state, this);
   }
 
-  next(): void {
-    this.flow.next(this.state, this);
+  async next() {
+    if (this.flow == null)
+      throw new Error('#defineFlow must be called before using the engine.');
+
+    await this.flow.next(this.state, this);
   }
 
-  gameOver(): void {
+  gameOver() {
     console.log('Game over');
   }
 
-  getCurrentPlayer(): Player {
-    return this.players.find((p) => p.id === this.flow.currentNode().playerId);
+  getCurrentPlayer(): Player | undefined {
+    if (this.flow == null)
+      throw new Error('#defineFlow must be called before using the engine.');
+
+    return this.players.find((p) => p.id === this.flow!.currentNode().playerId);
   }
 }
 
@@ -67,12 +76,12 @@ class Flow {
     this.nodes = nodes;
   }
 
-  start(state, f): void {
+  async start(state: State, f: Engine) {
     this.visitedNodeIds = [];
 
     this.traversalStack.push(...this.nodes.slice().reverse());
     this.visitedNodeIds.push(this.currentNode().id);
-    this.currentNode().onStart(state, f);
+    await this.currentNode().onStart?.(state, f);
   }
 
   /*
@@ -81,9 +90,9 @@ class Flow {
     its children are pushed onto the stack in reverse order.
     A list of visited nodes is used to determine if a node is being exited when it returns to the top of the stack.
   */
-  next(state, f): void {
+  async next(state: State, f: Engine) {
     if (this.traversalStack.size() === 0) {
-      this.start(state, f);
+      await this.start(state, f);
       return;
     }
 
@@ -92,25 +101,25 @@ class Flow {
     if (previous.children.length > 0) {
       this.traversalStack.push(...previous.children.slice().reverse());
       this.visitedNodeIds.push(this.currentNode().id);
-      this.currentNode().onStart?.(state, f);
+      await this.currentNode().onStart?.(state, f);
     } else {
-      this.currentNode().onEnd?.(state, f);
+      this.currentNode().onEnd?.(state);
       this.traversalStack.pop();
       if (this.traversalStack.size() === 0) {
-        this.start(state, f); // empty stack means we need to restart the traversal
+        await this.start(state, f);
         return;
       }
 
       while (this.visitedNodeIds.includes(this.currentNode().id)) {
-        this.currentNode().onEnd?.(state, f);
+        this.currentNode().onEnd?.(state);
         this.traversalStack.pop();
         if (this.traversalStack.size() === 0) {
-          this.start(state, f); // empty stack means we need to restart the traversal
+          await this.start(state, f);
           return;
         }
       }
       this.visitedNodeIds.push(this.currentNode().id);
-      this.currentNode().onStart?.(state, f);
+      await this.currentNode().onStart?.(state, f);
     }
   }
 
@@ -125,18 +134,19 @@ interface FlowNode {
 
   playerId?: string;
 
-  onStart?: FlowCallback;
-  onEnd?: FlowCallback;
+  onStart?: FlowOnStartCallback;
+  onEnd?: FlowOnEndCallback;
 }
 
 // TODO - when is it safe to call `next()` or `gameOver()`? on callbacks? probably not
 // probably need to define what `f` is for each identified callback
-type FlowCallback = (state: State, f: Engine) => void;
+type FlowOnStartCallback = (state: State, f: Engine) => Promise<void> | void;
+type FlowOnEndCallback = (state: State) => void;
 
 class Stack<T> {
   private items: T[] = [];
 
-  push(...items): void {
+  push(...items: T[]) {
     this.items.push(...items);
   }
 
@@ -144,7 +154,7 @@ class Stack<T> {
     return this.items[this.items.length - 1];
   }
 
-  pop(): T {
+  pop(): T | undefined {
     return this.items.pop();
   }
 
@@ -161,8 +171,8 @@ interface FlowBuilderNodeConfig {
   playerId?: string;
   autoAdvance?: boolean;
 
-  onStart?: FlowCallback;
-  onEnd?: FlowCallback;
+  onStart?: FlowOnStartCallback;
+  onEnd?: FlowOnEndCallback;
 }
 
 interface FlowBuilderNode {
@@ -172,8 +182,8 @@ interface FlowBuilderNode {
   playerId?: string;
   autoAdvance?: boolean;
 
-  onStart?: FlowCallback;
-  onEnd?: FlowCallback;
+  onStart?: FlowOnStartCallback;
+  onEnd?: FlowOnEndCallback;
 }
 
 class FlowBuilder {
@@ -219,9 +229,9 @@ class FlowBuilder {
       children: node.children.map((c) => this.buildFlowNode(c)),
       playerId: node.playerId,
       onStart: node.autoAdvance
-        ? (state, f): void => {
-            node.onStart?.(state, f);
-            f.next();
+        ? async (state, f) => {
+            await node.onStart?.(state, f);
+            await f.next();
           }
         : node.onStart,
       onEnd: node.onEnd,
@@ -267,29 +277,29 @@ engine.defineFlow((f) => {
 
 const board = new Board();
 
-function onTurnEnd(_state, f): void {
-  console.log(`Turn ended for ${f.getCurrentPlayer().name}`);
+function onTurnEnd() {
+  console.log('Turn ended.');
 }
 
-async function onTurnStart(_state, f): Promise<void> {
-  console.log(`Turn started for ${f.getCurrentPlayer().name}`);
+async function onTurnStart(_state: State, f: Engine) {
+  console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
 
   board.print();
 
   let xCoord = -1;
   let yCoord = -1;
   while (!board.isValidMove(xCoord, yCoord)) {
-    xCoord = await number({ message: 'x coord:' });
-    yCoord = await number({ message: 'y coord:' });
+    xCoord = (await number({ message: 'x coord:' })) || -1;
+    yCoord = (await number({ message: 'y coord:' })) || -1;
   }
 
-  board.move(f.getCurrentPlayer().name, xCoord, yCoord);
+  board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);
 
   if (board.hasWinner()) {
     f.gameOver();
   } else {
-    f.next();
+    await f.next();
   }
 }
 
-engine.start();
+await engine.start();

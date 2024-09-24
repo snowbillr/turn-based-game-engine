@@ -33,8 +33,6 @@ export class Engine {
   defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder) {
     const flowBuilder = new FlowBuilder();
     this.flow = flowFn(flowBuilder).build();
-
-    console.log(this.flow);
   }
 
   async start() {

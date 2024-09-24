@@ -3,8 +3,6 @@ import eslint from '@eslint/js';
 import vitest from '@vitest/eslint-plugin';
 import tsEslint from 'typescript-eslint';
 
-// This is just an example default config for ESLint.
-// You should change it to your needs following the documentation.
 export default tsEslint.config(
   {
     ignores: ['**/build/**', '**/tmp/**', '**/coverage/**'],

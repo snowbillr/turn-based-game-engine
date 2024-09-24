@@ -289,8 +289,10 @@ async function onTurnStart(_state: State, f: Engine) {
   let xCoord = -1;
   let yCoord = -1;
   while (!board.isValidMove(xCoord, yCoord)) {
-    xCoord = (await number({ message: 'x coord:' })) || -1;
-    yCoord = (await number({ message: 'y coord:' })) || -1;
+    xCoord = (await number({ message: 'x coord:' })) ?? -1;
+    yCoord = (await number({ message: 'y coord:' })) ?? -1;
+
+    console.log('coords:', xCoord, yCoord);
   }
 
   board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);

@@ -19,6 +19,28 @@ const engine = new Engine<GameState>({
   },
 });
 
+// TODO - this shouldn't need to declare its param type
+const onTurnStart: FlowOnStartCallback<GameState> = async (f) => {
+  console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
+
+  f.state.board.print();
+
+  let xCoord = -1;
+  let yCoord = -1;
+  while (!f.state.board.isValidMove(xCoord, yCoord)) {
+    xCoord = (await number({ message: 'x coord:' })) ?? -1;
+    yCoord = (await number({ message: 'y coord:' })) ?? -1;
+  }
+
+  f.state.board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);
+
+  if (f.state.board.hasWinner()) {
+    f.gameOver();
+  } else {
+    await f.next();
+  }
+}
+
 engine.defineFlow((f) => {
   f.node(
     {
@@ -50,26 +72,5 @@ function onTurnEnd() {
   console.log('Turn ended.');
 }
 
-// TODO - this shouldn't need to declare its param type
-const onTurnStart: FlowOnStartCallback<GameState> = async (f) => {
-  console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
-
-  f.state.board.print();
-
-  let xCoord = -1;
-  let yCoord = -1;
-  while (!f.state.board.isValidMove(xCoord, yCoord)) {
-    xCoord = (await number({ message: 'x coord:' })) ?? -1;
-    yCoord = (await number({ message: 'y coord:' })) ?? -1;
-  }
-
-  f.state.board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);
-
-  if (f.state.board.hasWinner()) {
-    f.gameOver();
-  } else {
-    await f.next();
-  }
-}
 
 await engine.start();

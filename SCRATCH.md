@@ -1,3 +1,6 @@
+**generic-state**
+
+From a DevEx perspective, why does the Flow need the `<State>` generic? When the flow is being defined, we don't care about what the callback parameters are going to be. Buuuuttt we do since we're passing in the callbacks.
 
 I'm worried about needing to declare the onStart and onEnd with the flow definitions. That seems to make things harder.
 

@@ -3,6 +3,7 @@ import { number } from '@inquirer/prompts';
 import { Engine, State } from '../lib/engine.js';
 
 import { Board } from './board.js';
+import { FlowContext } from '../lib/flow.js';
 
 const engine = new Engine({
   players: [
@@ -44,7 +45,7 @@ function onTurnEnd() {
   console.log('Turn ended.');
 }
 
-async function onTurnStart(_state: State, f: Engine) {
+async function onTurnStart(_state: State, f: FlowContext) {
   console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
 
   board.print();

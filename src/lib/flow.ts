@@ -16,7 +16,7 @@ export class Flow {
     this.nodes = nodes;
   }
 
-  async start(state: State, f: Engine) {
+  async start(state: State, f: FlowContext) {
     this.visitedNodeIds = [];
 
     this.traversalStack.push(...this.nodes.slice().reverse());
@@ -30,7 +30,7 @@ export class Flow {
     its children are pushed onto the stack in reverse order.
     A list of visited nodes is used to determine if a node is being exited when it returns to the top of the stack.
   */
-  async next(state: State, f: Engine) {
+  async next(state: State, f: FlowContext) {
     if (this.traversalStack.size() === 0) {
       await this.start(state, f);
       return;
@@ -78,8 +78,14 @@ export interface FlowNode {
   onEnd?: FlowOnEndCallback;
 }
 
+export interface FlowContext {
+  next: Engine['next'];
+  gameOver: Engine['gameOver'];
+  getCurrentPlayer: Engine['getCurrentPlayer'];
+}
+
 export type FlowOnStartCallback = (
   state: State,
-  f: Engine,
+  f: FlowContext,
 ) => Promise<void> | void;
 export type FlowOnEndCallback = (state: State) => void;

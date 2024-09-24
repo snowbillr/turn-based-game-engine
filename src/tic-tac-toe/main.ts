@@ -138,8 +138,6 @@ interface FlowNode {
   onEnd?: FlowOnEndCallback;
 }
 
-// TODO - when is it safe to call `next()` or `gameOver()`? on callbacks? probably not
-// probably need to define what `f` is for each identified callback
 type FlowOnStartCallback = (state: State, f: Engine) => Promise<void> | void;
 type FlowOnEndCallback = (state: State) => void;
 

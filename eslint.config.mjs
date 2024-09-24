@@ -1,7 +1,6 @@
 // @ts-check
 import eslint from '@eslint/js';
 import vitest from '@vitest/eslint-plugin';
-// import eslintConfigPrettier from 'eslint-config-prettier';
 import tsEslint from 'typescript-eslint';
 
 // This is just an example default config for ESLint.
@@ -13,9 +12,8 @@ export default tsEslint.config(
   eslint.configs.recommended,
   ...tsEslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
-    files: ['**/*.ts'], // We use TS config only for TS files
+    files: ['**/*.ts'],
   })),
-  // eslintConfigPrettier,
   {
     extends: [...tsEslint.configs.recommended],
 

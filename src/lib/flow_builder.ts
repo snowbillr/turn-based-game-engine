@@ -6,7 +6,7 @@ import {
 } from './flow.js';
 
 interface FlowBuilderNodeConfig {
-  id: string;
+  id: string; // TODO - make optional and generate unique ids if missing
 
   playerId?: string;
   autoAdvance?: boolean;

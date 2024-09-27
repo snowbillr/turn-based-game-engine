@@ -35,18 +35,19 @@ export class Engine {
     this.flow = flowFn(flowBuilder).build();
   }
 
-  async start() {
+  start() {
     if (this.flow == null)
       throw new Error('#defineFlow must be called before using the engine.');
 
-    await this.flow.start(this.state, this.flowContext);
+    this.flow.start(this.state, this.flowContext);
   }
 
-  async next() {
+  next() {
     if (this.flow == null)
       throw new Error('#defineFlow must be called before using the engine.');
 
-    await this.flow.next(this.state, this.flowContext);
+    console.log('next called')
+    this.flow.next(this.state, this.flowContext);
   }
 
   gameOver() {

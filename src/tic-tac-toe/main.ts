@@ -4,6 +4,7 @@ import { Engine, State } from '../lib/engine.js';
 
 import { Board } from './board.js';
 import { FlowContext } from '../lib/flow.js';
+import { FlowAction, FlowCleanup } from '../lib/flow_node.js';
 
 const engine = new Engine({
   players: [
@@ -14,14 +15,18 @@ const engine = new Engine({
 
 const board = new Board();
 
-const RoundStart = () => console.log('Round started');
-const RoundEnd = () => console.log('Round ended');
+const RoundStart: FlowAction = (state, f) => {
+  console.log('Round started');
+  f.next()
+}
+const RoundEnd: FlowCleanup = () => console.log('Round ended')
 
-function TurnEnd() {
+const TurnEnd: FlowCleanup = () => {
   console.log('Turn ended.');
 }
 
-async function TurnStart(_state: State, f: FlowContext) {
+// TODO make FlowAction type work with async functions
+const TurnStart = async (_state: State, f: FlowContext) => {
   console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
 
   board.print();
@@ -38,7 +43,7 @@ async function TurnStart(_state: State, f: FlowContext) {
   if (board.hasWinner()) {
     f.gameOver();
   } else {
-    await f.next();
+    f.next()
   }
 }
 
@@ -46,7 +51,6 @@ engine.defineFlow((f) => {
   f.node(
     {
       id: 'round1',
-      autoAdvance: true, // TODO - autoAdvance automatically when there are no `actions`
       actions: [RoundStart],
       cleanup: [RoundEnd],
     },
@@ -69,4 +73,4 @@ engine.defineFlow((f) => {
   return f;
 });
 
-await engine.start();
+engine.start();

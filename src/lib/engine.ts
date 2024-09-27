@@ -5,7 +5,7 @@ interface EngineConfig {
   players: Player[];
 }
 
-interface Player {
+export interface Player {
   id: string;
   name: string;
 }
@@ -31,7 +31,7 @@ export class Engine {
   }
 
   defineFlow(flowFn: (f: FlowBuilder) => void) {
-    const flowBuilder = new FlowBuilder();
+    const flowBuilder = new FlowBuilder(this.players);
     flowFn(flowBuilder);
     this.flow = flowBuilder.build()
   }

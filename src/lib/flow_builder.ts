@@ -1,3 +1,4 @@
+import { Player } from './engine.js';
 import { Flow } from './flow.js';
 import { FlowNode, FlowAction, FlowCleanup } from './flow_node.js';
 
@@ -12,6 +13,10 @@ interface FlowBuilderNodeConfig {
 
 export class FlowBuilder {
   private nodes: FlowNode[] = [];
+
+  constructor(
+    private players: Player[],
+  ) {}
 
   // TODO add convenience methods for defining nodes
   // - method to build a node for each player
@@ -39,6 +44,14 @@ export class FlowBuilder {
     }
 
     return flowNode;
+  }
+
+  // convenience methods
+
+  eachPlayerNode(fn: (player: Player) => FlowBuilderNodeConfig) {
+    return this.players
+      .map(fn)
+      .map((config) => this.node(config))
   }
 
   build(): Flow {

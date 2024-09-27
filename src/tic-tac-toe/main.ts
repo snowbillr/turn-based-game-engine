@@ -55,20 +55,13 @@ engine.defineFlow((f) =>
       actions: [RoundStart],
       cleanup: [RoundEnd],
     },
-    [
-      f.node({
-        id: 'turn1::X',
-        playerId: 'playerX',
-        actions: [TurnStart],
-        cleanup: [TurnEnd],
-      }),
-      f.node({
-        id: 'turn1::O',
-        playerId: 'playerO',
-        actions: [TurnStart],
-        cleanup: [TurnEnd],
-      }),
-    ],
+    f.eachPlayerNode(player => ({
+      id: `turn1::${player.id}`,
+      playerId: player.id,
+      actions: [TurnStart],
+      cleanup: [TurnEnd],
+    }))
+    ,
   )
 );
 

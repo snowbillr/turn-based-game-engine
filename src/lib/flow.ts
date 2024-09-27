@@ -64,7 +64,7 @@ export class Flow {
         return;
       }
 
-      while (this.visitedNodeIds.includes(this.currentNode().id)) {
+      while (this.hasVisitedNode(this.currentNode())) {
         // We know better than TypeScript here that the stack is not empty
         // because of the `size` check before this while loop
         this.leaveNode(this.traversalStack.pop()!, state);
@@ -102,6 +102,10 @@ export class Flow {
 
   private queueActions(actions: FlowAction[]) {
     this.actionQueue.push(...actions);
+  }
+
+  private hasVisitedNode(node: FlowNode) {
+    return this.visitedNodeIds.includes(node.id)
   }
 }
 

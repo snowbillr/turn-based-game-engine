@@ -1,6 +1,7 @@
 import { Stack } from './stack.js';
 import { Engine, State } from './engine.js';
 import { FlowAction, FlowNode } from './flow_node.js';
+import { Queue } from './queue.js';
 
 /*
   The flow of the game is defined as a tree of nodes.
@@ -13,7 +14,7 @@ export class Flow {
   private traversalStack = new Stack<FlowNode>();
   private visitedNodeIds: string[] = [];
 
-  private actionStack = new Stack<FlowAction>(); // TODO - make this a queue
+  private actionQueue = new Queue<FlowAction>();
 
   constructor(private nodes: FlowNode[]) {
     this.nodes = nodes;
@@ -32,8 +33,7 @@ export class Flow {
     this.runAction(state, f);
   }
 
-
-  /*
+ /*
     A depth-first traversal is of the node graph.
     A stack is used to keep track of the nodes that need to be visited. When a node is visited,
     its children are pushed onto the stack in reverse order.
@@ -45,7 +45,7 @@ export class Flow {
       return;
     }
 
-    if (this.actionStack.size() > 0) {
+    if (this.actionQueue.size() > 0) {
       this.runAction(state, f);
       return;
     }
@@ -91,12 +91,12 @@ export class Flow {
   }
 
   runAction(state: State, f: FlowContext) {
-    const action = this.actionStack.pop();
+    const action = this.actionQueue.pop();
     if (action) action(state, f);
   }
 
   queueActions(actions: FlowAction[]) {
-    this.actionStack.push(...actions);
+    this.actionQueue.push(...actions);
   }
 
   private leaveNode(node: FlowNode, state: State) {
@@ -105,7 +105,6 @@ export class Flow {
     }
   }
 }
-
 
 export interface FlowContext {
   next: Engine['next'];

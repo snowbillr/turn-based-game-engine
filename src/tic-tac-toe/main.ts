@@ -26,6 +26,7 @@ const TurnEnd: FlowCleanup = () => {
 }
 
 // TODO make FlowAction type work with async functions
+// may be better to make convenience methods in `FlowBuilder` first
 const TurnStart = async (_state: State, f: FlowContext) => {
   console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
 

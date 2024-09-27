@@ -1,21 +1,23 @@
 import { number } from '@inquirer/prompts';
 
-import { Engine, State } from '../lib/engine.js';
-
 import { Board } from './board.js';
-import { FlowContext } from '../lib/flow.js';
-import { FlowAction, FlowCleanup } from '../lib/flow_node.js';
+import { Player } from '../lib/player.js';
+import { Engine, FlowContext, State } from '../lib/engine.js';
+import { FlowAction, FlowCleanup } from '../lib/flow.js';
 
-const engine = new Engine({
-  players: [
-    { id: 'playerX', name: 'X' },
-    { id: 'playerO', name: 'O' },
-  ],
-});
+interface PlayerAttributes {
+  name: string;
+}
+const players: Player<PlayerAttributes>[] = [
+  new Player('playerX', { name: 'X' }),
+  new Player('playerO', { name: 'O' }),
+]
+
+const engine = new Engine({ players });
 
 const board = new Board();
 
-const RoundStart: FlowAction = (state, f) => {
+const RoundStart: FlowAction<PlayerAttributes> = (state, f) => {
   console.log('Round started');
   f.next()
 }
@@ -27,8 +29,9 @@ const TurnEnd: FlowCleanup = () => {
 
 // TODO make FlowAction type work with async functions
 // may be better to make convenience methods in `FlowBuilder` first
-const TurnStart = async (_state: State, f: FlowContext) => {
-  console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
+// const TurnStart: FlowAction<PlayerAttributes> = async (state, f) => {
+const TurnStart = async (state: State, f: FlowContext<PlayerAttributes>) => {
+  console.log(`Turn started for ${f.getCurrentPlayer()!.attributes.name}`);
 
   board.print();
 
@@ -39,7 +42,7 @@ const TurnStart = async (_state: State, f: FlowContext) => {
     yCoord = (await number({ message: 'y coord:' })) ?? -1;
   }
 
-  board.move(f.getCurrentPlayer()!.name, xCoord, yCoord);
+  board.move(f.getCurrentPlayer()!.attributes.name, xCoord, yCoord);
 
   if (board.hasWinner()) {
     f.gameOver();
@@ -52,16 +55,15 @@ engine.defineFlow((f) =>
   f.node(
     {
       id: 'round1',
-      actions: [RoundStart],
-      cleanup: [RoundEnd],
+      actions: [f.action(RoundStart)],
+      cleanups: [f.cleanup(RoundEnd)],
     },
-    f.eachPlayerNode(player => ({
+    players.map(player => f.node({
       id: `turn1::${player.id}`,
       playerId: player.id,
-      actions: [TurnStart],
-      cleanup: [TurnEnd],
-    }))
-    ,
+      actions: [f.action(TurnStart)],
+      cleanups: [f.cleanup(TurnEnd)],
+    })),
   )
 );
 

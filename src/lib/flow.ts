@@ -1,7 +1,17 @@
 import { Stack } from './stack.js';
-import { Engine, State } from './engine.js';
-import { FlowAction, FlowNode } from './flow_node.js';
+import { FlowNode } from './flow_node.js';
 import { Queue } from './queue.js';
+import { FlowContext, State } from './engine.js';
+
+export type FlowActionId = number;
+export type FlowCleanupId = number;
+
+export type FlowAction<Attributes> = (
+  state: State,
+  f: FlowContext<Attributes>,
+) => void;
+
+export type FlowCleanup = (state: State) => void;
 
 /*
   The flow of the game is defined as a tree of nodes.
@@ -14,13 +24,14 @@ export class Flow {
   private traversalStack = new Stack<FlowNode>();
   private visitedNodeIds: string[] = [];
 
-  private actionQueue = new Queue<FlowAction>();
+  private actionIdQueue = new Queue<FlowActionId>();
 
-  constructor(private nodes: FlowNode[]) {
-    this.nodes = nodes;
-  }
+  constructor(
+    private nodes: FlowNode[],
+    private actionRunner: (action: FlowActionId) => void,
+    private cleanupRunner: (cleanup: FlowCleanupId) => void) {}
 
-  start(state: State, f: FlowContext) {
+  start() {
     if (this.nodes.length === 0) throw new Error('Cannot start flow with no nodes');
 
     this.visitedNodeIds = [];
@@ -29,7 +40,7 @@ export class Flow {
     const currentNode = nodes[0];
 
     this.traversalStack.push(...nodes);
-    this.visitNode(currentNode, state, f);
+    this.visitNode(currentNode);
   }
 
  /*
@@ -38,14 +49,14 @@ export class Flow {
     its children are pushed onto the stack in reverse order.
     A list of visited nodes is used to determine if a node is being exited when it returns to the top of the stack.
   */
-  next(state: State, f: FlowContext) {
+  next() {
     if (this.traversalStack.size() === 0) {
-      this.start(state, f);
+      this.start();
       return;
     }
 
-    if (this.actionQueue.size() > 0) {
-      this.runAction(state, f);
+    if (this.actionIdQueue.size() > 0) {
+      this.runAction();
       return;
     }
 
@@ -53,28 +64,28 @@ export class Flow {
 
     if (previous.children.length > 0) {
       this.traversalStack.push(...previous.children.slice().reverse());
-      this.visitNode(this.currentNode(), state, f);
+      this.visitNode(this.currentNode());
       return;
     } else {
       // We know better than TypeScript here that the stack is not empty
       // because of the `size` check at the top of `next`.
-      this.leaveNode(this.traversalStack.pop()!, state);
+      this.leaveNode(this.traversalStack.pop()!);
       if (this.traversalStack.size() === 0) {
-        this.start(state, f);
+        this.start();
         return;
       }
 
       while (this.hasVisitedNode(this.currentNode())) {
         // We know better than TypeScript here that the stack is not empty
         // because of the `size` check before this while loop
-        this.leaveNode(this.traversalStack.pop()!, state);
+        this.leaveNode(this.traversalStack.pop()!);
         if (this.traversalStack.size() === 0) {
-          this.start(state, f);
+          this.start();
           return;
         }
       }
 
-      this.visitNode(this.currentNode(), state, f);
+      this.visitNode(this.currentNode());
     }
   }
 
@@ -82,36 +93,31 @@ export class Flow {
     return this.traversalStack.peek();
   }
 
-  private visitNode(node: FlowNode, state: State, f: FlowContext) {
+  private visitNode(node: FlowNode) {
     this.visitedNodeIds.push(node.id);
 
-    this.queueActions(node.actions);
-    this.runAction(state, f);
+    this.queueActionIds(node.actionIds);
+    this.runAction();
   }
 
-  private leaveNode(node: FlowNode, state: State) {
-    for (const cleanup of node.cleanup) {
-      cleanup(state);
+  private leaveNode(node: FlowNode) {
+    for (const cleanupId of node.cleanupIds) {
+      console.log('flow running cleanupid', cleanupId);
+      this.cleanupRunner(cleanupId);
     }
   }
 
-  private runAction(state: State, f: FlowContext) {
-    const action = this.actionQueue.pop();
-    if (action) action(state, f);
+  private runAction() {
+    const actionId = this.actionIdQueue.pop();
+    console.log('flow running actionid', actionId);
+    if (actionId) this.actionRunner(actionId);
   }
 
-  private queueActions(actions: FlowAction[]) {
-    this.actionQueue.push(...actions);
+  private queueActionIds(actions: FlowActionId[]) {
+    this.actionIdQueue.push(...actions);
   }
 
   private hasVisitedNode(node: FlowNode) {
     return this.visitedNodeIds.includes(node.id)
   }
 }
-
-export interface FlowContext {
-  next: Engine['next'];
-  gameOver: Engine['gameOver'];
-  getCurrentPlayer: Engine['getCurrentPlayer'];
-}
-

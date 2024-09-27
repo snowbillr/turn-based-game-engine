@@ -1,23 +1,15 @@
-import { State } from "./engine.js";
-import { FlowContext } from "./flow.js";
-
-export type FlowAction = (
-  state: State,
-  f: FlowContext,
-) => void;
-
-export type FlowCleanup = (state: State) => void;
+import { FlowActionId, FlowCleanupId } from "./flow.js";
 
 interface FlowNodeOptions {
   playerId?: string;
-  actions?: FlowAction[];
-  cleanup?: FlowCleanup[];
+  actionIds?: FlowActionId[];
+  cleanupIds?: FlowCleanupId[];
 }
 
 export class FlowNode {
   public playerId?: string
-  public actions: FlowAction[]
-  public cleanup: FlowCleanup[]
+  public actionIds: FlowActionId[]
+  public cleanupIds: FlowCleanupId[]
 
   constructor(
     public id: string,
@@ -25,7 +17,7 @@ export class FlowNode {
     options: FlowNodeOptions = {},
   ) {
     this.playerId = options.playerId;
-    this.actions = options.actions ?? [];
-    this.cleanup = options.cleanup ?? [];
+    this.actionIds = options.actionIds ?? [];
+    this.cleanupIds = options.cleanupIds ?? [];
   }
 }

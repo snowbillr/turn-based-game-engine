@@ -1,22 +1,29 @@
-import { Player } from './engine.js';
-import { Flow } from './flow.js';
-import { FlowNode, FlowAction, FlowCleanup } from './flow_node.js';
+import hash from 'hash-it';
+
+import { Flow, FlowAction, FlowActionId, FlowCleanup, FlowCleanupId } from './flow.js';
+import { FlowNode } from './flow_node.js';
 
 interface FlowBuilderNodeConfig {
   id: string; // TODO - make optional and generate unique ids if missing
 
   playerId?: string;
 
-  actions?: FlowAction[];
-  cleanup?: FlowCleanup[];
+  actions?: FlowActionId[];
+  cleanups?: FlowCleanupId[];
 }
 
-export class FlowBuilder {
-  private nodes: FlowNode[] = [];
+interface FlowBuilderOutput<Attributes> {
+  flow: Flow;
+  actions: { [key: FlowActionId]: FlowAction<Attributes> };
+  cleanups: { [key: FlowCleanupId]: FlowCleanup };
+}
 
-  constructor(
-    private players: Player[],
-  ) {}
+export class FlowBuilder<Attributes> {
+  private nodes: FlowNode[] = [];
+  private actions: { [key: FlowActionId]: FlowAction<Attributes> } = {};
+  private cleanups: { [key: FlowCleanupId]: FlowCleanup } = {};
+
+  constructor() {}
 
   // TODO add convenience methods for defining nodes
   // - method to build a node for each player
@@ -32,8 +39,8 @@ export class FlowBuilder {
       children,
       {
         playerId: config.playerId,
-        actions: config.actions,
-        cleanup: config.cleanup,
+        actionIds: config.actions,
+        cleanupIds: config.cleanups,
       }
     );
 
@@ -46,15 +53,25 @@ export class FlowBuilder {
     return flowNode;
   }
 
-  // convenience methods
+  action(action: FlowAction<Attributes>): FlowActionId {
+    const actionId = hash(action.toString());
+    this.actions[actionId] = action;
 
-  eachPlayerNode(fn: (player: Player) => FlowBuilderNodeConfig) {
-    return this.players
-      .map(fn)
-      .map((config) => this.node(config))
+    return actionId;
   }
 
-  build(): Flow {
-    return new Flow(this.nodes);
+  cleanup(cleanup: FlowCleanup): FlowCleanupId {
+    const cleanupId = hash(cleanup.toString());
+    this.cleanups[cleanupId] = cleanup;
+
+    return cleanupId;
+  }
+
+  build(actionRunner: (action: FlowActionId) => void, cleanupRunner: (cleanup: FlowCleanupId) => void): FlowBuilderOutput<Attributes> {
+    return {
+      flow: new Flow(this.nodes, actionRunner, cleanupRunner),
+      actions: this.actions,
+      cleanups: this.cleanups,
+    }
   }
 }

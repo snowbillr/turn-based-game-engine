@@ -23,14 +23,13 @@ export class Flow {
   start(state: State, f: FlowContext) {
     if (this.nodes.length === 0) throw new Error('Cannot start flow with no nodes');
 
+    this.visitedNodeIds = [];
+
     const nodes = this.nodes.slice().reverse();
     const currentNode = nodes[0];
 
     this.traversalStack.push(...nodes);
-    this.visitedNodeIds = [currentNode.id];
-
-    this.queueActions(currentNode.actions); // TODO - use visitNode here
-    this.runAction(state, f);
+    this.visitNode(currentNode, state, f);
   }
 
  /*
@@ -90,19 +89,19 @@ export class Flow {
     this.runAction(state, f);
   }
 
-  runAction(state: State, f: FlowContext) {
-    const action = this.actionQueue.pop();
-    if (action) action(state, f);
-  }
-
-  queueActions(actions: FlowAction[]) {
-    this.actionQueue.push(...actions);
-  }
-
   private leaveNode(node: FlowNode, state: State) {
     for (const cleanup of node.cleanup) {
       cleanup(state);
     }
+  }
+
+  private runAction(state: State, f: FlowContext) {
+    const action = this.actionQueue.pop();
+    if (action) action(state, f);
+  }
+
+  private queueActions(actions: FlowAction[]) {
+    this.actionQueue.push(...actions);
   }
 }
 

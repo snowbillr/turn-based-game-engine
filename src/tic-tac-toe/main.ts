@@ -48,7 +48,7 @@ const TurnStart = async (_state: State, f: FlowContext) => {
   }
 }
 
-engine.defineFlow((f) => {
+engine.defineFlow((f) => 
   f.node(
     {
       id: 'round1',
@@ -69,9 +69,7 @@ engine.defineFlow((f) => {
         cleanup: [TurnEnd],
       }),
     ],
-  );
-
-  return f;
-});
+  )
+);
 
 engine.start();

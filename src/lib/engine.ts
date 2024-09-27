@@ -30,9 +30,10 @@ export class Engine {
     };
   }
 
-  defineFlow(flowFn: (f: FlowBuilder) => FlowBuilder) {
+  defineFlow(flowFn: (f: FlowBuilder) => void) {
     const flowBuilder = new FlowBuilder();
-    this.flow = flowFn(flowBuilder).build();
+    flowFn(flowBuilder);
+    this.flow = flowBuilder.build()
   }
 
   start() {

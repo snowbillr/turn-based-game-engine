@@ -1,8 +1,10 @@
+import { State } from './engine.js';
 import {
   Flow,
   FlowNode,
-  FlowOnEndCallback,
-  FlowOnStartCallback,
+  FlowCleanup,
+  FlowAction,
+  FlowContext,
 } from './flow.js';
 
 interface FlowBuilderNodeConfig {
@@ -11,8 +13,8 @@ interface FlowBuilderNodeConfig {
   playerId?: string;
   autoAdvance?: boolean;
 
-  onStart?: FlowOnStartCallback;
-  onEnd?: FlowOnEndCallback;
+  actions?: FlowAction[];
+  cleanup?: FlowCleanup[];
 }
 
 interface FlowBuilderNode {
@@ -22,8 +24,8 @@ interface FlowBuilderNode {
   playerId?: string;
   autoAdvance?: boolean;
 
-  onStart?: FlowOnStartCallback;
-  onEnd?: FlowOnEndCallback;
+  actions?: FlowAction[];
+  cleanup?: FlowCleanup[];
 }
 
 export class FlowBuilder {
@@ -44,8 +46,8 @@ export class FlowBuilder {
       autoAdvance: config.autoAdvance ?? false,
       playerId: config.playerId,
 
-      onStart: config.onStart,
-      onEnd: config.onEnd,
+      actions: config.actions,
+      cleanup: config.cleanup,
     };
 
     // don't record leaf nodes
@@ -64,17 +66,37 @@ export class FlowBuilder {
   }
 
   private buildFlowNode(node: FlowBuilderNode): FlowNode {
+    const actions: FlowAction[] = node.actions ? [...node.actions] : [];
+
+    if (node.autoAdvance) {
+      actions.push(async (_state: State, f: FlowContext) => {
+        await f.next();
+      });
+    }
+
+    // TODO make a FlowNode class
+    const runActions = async (state: State, f: FlowContext) => {
+      for (const action of actions) {
+        await action(state, f);
+      }
+    }
+
+    const runCleanup = (state: State) => {
+      if (node.cleanup) {
+        for (const cleanup of node.cleanup) {
+            cleanup(state);
+        }
+      }
+    }
+
     return {
       id: node.id,
       children: node.children.map((c) => this.buildFlowNode(c)),
       playerId: node.playerId,
-      onStart: node.autoAdvance
-        ? async (state, f) => {
-            await node.onStart?.(state, f);
-            await f.next();
-          }
-        : node.onStart,
-      onEnd: node.onEnd,
+      actions,
+      cleanup: node.cleanup,
+      runActions,
+      runCleanup,
     };
   }
 }

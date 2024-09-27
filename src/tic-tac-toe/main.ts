@@ -12,40 +12,16 @@ const engine = new Engine({
   ],
 });
 
-engine.defineFlow((f) => {
-  f.node(
-    {
-      id: 'round1',
-      autoAdvance: true,
-      onStart: () => console.log('Round started'),
-      onEnd: () => console.log('Round ended'),
-    },
-    [
-      f.node({
-        id: 'turn1::X',
-        playerId: 'playerX',
-        onStart: onTurnStart,
-        onEnd: onTurnEnd,
-      }),
-      f.node({
-        id: 'turn1::O',
-        playerId: 'playerO',
-        onStart: onTurnStart,
-        onEnd: onTurnEnd,
-      }),
-    ],
-  );
-
-  return f;
-});
-
 const board = new Board();
 
-function onTurnEnd() {
+const RoundStart = () => console.log('Round started');
+const RoundEnd = () => console.log('Round ended');
+
+function TurnEnd() {
   console.log('Turn ended.');
 }
 
-async function onTurnStart(_state: State, f: FlowContext) {
+async function TurnStart(_state: State, f: FlowContext) {
   console.log(`Turn started for ${f.getCurrentPlayer()!.name}`);
 
   board.print();
@@ -65,5 +41,32 @@ async function onTurnStart(_state: State, f: FlowContext) {
     await f.next();
   }
 }
+
+engine.defineFlow((f) => {
+  f.node(
+    {
+      id: 'round1',
+      autoAdvance: true, // TODO - autoAdvance automatically when there are no `actions`
+      actions: [RoundStart],
+      cleanup: [RoundEnd],
+    },
+    [
+      f.node({
+        id: 'turn1::X',
+        playerId: 'playerX',
+        actions: [TurnStart],
+        cleanup: [TurnEnd],
+      }),
+      f.node({
+        id: 'turn1::O',
+        playerId: 'playerO',
+        actions: [TurnStart],
+        cleanup: [TurnEnd],
+      }),
+    ],
+  );
+
+  return f;
+});
 
 await engine.start();

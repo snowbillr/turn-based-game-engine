@@ -17,11 +17,15 @@ export class Flow {
   }
 
   async start(state: State, f: FlowContext) {
-    this.visitedNodeIds = [];
+    if (this.nodes.length === 0) throw new Error('Cannot start flow with no nodes');
 
-    this.traversalStack.push(...this.nodes.slice().reverse());
-    this.visitedNodeIds.push(this.currentNode().id);
-    await this.currentNode().onStart?.(state, f);
+    const nodes = this.nodes.slice().reverse();
+    const currentNode = nodes[0];
+
+    this.traversalStack.push(...nodes);
+    this.visitedNodeIds = [currentNode.id];
+
+    await currentNode.runActions(state, f)
   }
 
   /*
@@ -41,9 +45,9 @@ export class Flow {
     if (previous.children.length > 0) {
       this.traversalStack.push(...previous.children.slice().reverse());
       this.visitedNodeIds.push(this.currentNode().id);
-      await this.currentNode().onStart?.(state, f);
+      await this.currentNode().runActions(state, f);
     } else {
-      this.currentNode().onEnd?.(state);
+      this.currentNode().runCleanup(state);
       this.traversalStack.pop();
       if (this.traversalStack.size() === 0) {
         await this.start(state, f);
@@ -51,7 +55,7 @@ export class Flow {
       }
 
       while (this.visitedNodeIds.includes(this.currentNode().id)) {
-        this.currentNode().onEnd?.(state);
+        this.currentNode().runCleanup(state);
         this.traversalStack.pop();
         if (this.traversalStack.size() === 0) {
           await this.start(state, f);
@@ -59,7 +63,7 @@ export class Flow {
         }
       }
       this.visitedNodeIds.push(this.currentNode().id);
-      await this.currentNode().onStart?.(state, f);
+      await this.currentNode().runActions(state, f);
     }
   }
 
@@ -74,8 +78,11 @@ export interface FlowNode {
 
   playerId?: string;
 
-  onStart?: FlowOnStartCallback;
-  onEnd?: FlowOnEndCallback;
+  actions?: FlowAction[];
+  cleanup?: FlowCleanup[];
+
+  runActions: (state: State, f: FlowContext) => Promise<void>;
+  runCleanup: FlowCleanup;
 }
 
 export interface FlowContext {
@@ -84,8 +91,8 @@ export interface FlowContext {
   getCurrentPlayer: Engine['getCurrentPlayer'];
 }
 
-export type FlowOnStartCallback = (
+export type FlowAction = (
   state: State,
   f: FlowContext,
 ) => Promise<void> | void;
-export type FlowOnEndCallback = (state: State) => void;
+export type FlowCleanup = (state: State) => void;

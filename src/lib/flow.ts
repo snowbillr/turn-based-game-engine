@@ -13,7 +13,7 @@ export class Flow {
   private traversalStack = new Stack<FlowNode>();
   private visitedNodeIds: string[] = [];
 
-  private actionStack = new Stack<FlowAction>();
+  private actionStack = new Stack<FlowAction>(); // TODO - make this a queue
 
   constructor(private nodes: FlowNode[]) {
     this.nodes = nodes;
@@ -28,18 +28,10 @@ export class Flow {
     this.traversalStack.push(...nodes);
     this.visitedNodeIds = [currentNode.id];
 
-    this.queueActions(currentNode.actions);
+    this.queueActions(currentNode.actions); // TODO - use visitNode here
     this.runAction(state, f);
   }
 
-  runAction(state: State, f: FlowContext) {
-    const action = this.actionStack.pop();
-    if (action) action(state, f);
-  }
-
-  queueActions(actions: FlowAction[]) {
-    this.actionStack.push(...actions);
-  }
 
   /*
     A depth-first traversal is of the node graph.
@@ -63,22 +55,26 @@ export class Flow {
     if (previous.children.length > 0) {
       this.traversalStack.push(...previous.children.slice().reverse());
       this.visitNode(this.currentNode(), state, f);
+      return;
     } else {
-      // this.currentNode().runCleanup(state);
-      this.traversalStack.pop();
+      // We know better than TypeScript here that the stack is not empty
+      // because of the `size` check at the top of `next`.
+      this.leaveNode(this.traversalStack.pop()!, state);
       if (this.traversalStack.size() === 0) {
         this.start(state, f);
         return;
       }
 
       while (this.visitedNodeIds.includes(this.currentNode().id)) {
-        // this.currentNode().runCleanup(state);
-        this.traversalStack.pop();
+        // We know better than TypeScript here that the stack is not empty
+        // because of the `size` check before this while loop
+        this.leaveNode(this.traversalStack.pop()!, state);
         if (this.traversalStack.size() === 0) {
           this.start(state, f);
           return;
         }
       }
+
       this.visitNode(this.currentNode(), state, f);
     }
   }
@@ -92,6 +88,21 @@ export class Flow {
 
     this.queueActions(node.actions);
     this.runAction(state, f);
+  }
+
+  runAction(state: State, f: FlowContext) {
+    const action = this.actionStack.pop();
+    if (action) action(state, f);
+  }
+
+  queueActions(actions: FlowAction[]) {
+    this.actionStack.push(...actions);
+  }
+
+  private leaveNode(node: FlowNode, state: State) {
+    for (const cleanup of node.cleanup) {
+      cleanup(state);
+    }
   }
 }
 

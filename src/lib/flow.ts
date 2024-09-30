@@ -9,7 +9,7 @@ export type FlowCleanupId = number;
 export type FlowAction<Attributes> = (
   state: State,
   f: FlowContext<Attributes>,
-) => void;
+) => void | Promise<void>;
 
 export type FlowCleanup = (state: State) => void;
 

@@ -55,14 +55,14 @@ engine.defineFlow((f) =>
   f.node(
     {
       id: 'round1',
-      actions: [f.action(RoundStart)],
-      cleanups: [f.cleanup(RoundEnd)],
+      actions: f.actions(RoundStart),
+      cleanups: f.cleanups(RoundEnd),
     },
     players.map(player => f.node({
       id: `turn1::${player.id}`,
       playerId: player.id,
-      actions: [f.action(TurnStart)],
-      cleanups: [f.cleanup(TurnEnd)],
+      actions: f.actions(TurnStart),
+      cleanups: f.cleanups(TurnEnd),
     })),
   )
 );

@@ -20,8 +20,8 @@ interface FlowBuilderOutput<Attributes> {
 
 export class FlowBuilder<Attributes> {
   private nodes: FlowNode[] = [];
-  private actions: { [key: FlowActionId]: FlowAction<Attributes> } = {};
-  private cleanups: { [key: FlowCleanupId]: FlowCleanup } = {};
+  private nodeActions: { [key: FlowActionId]: FlowAction<Attributes> } = {};
+  private nodeCleanups: { [key: FlowCleanupId]: FlowCleanup } = {};
 
   constructor() {}
 
@@ -55,23 +55,31 @@ export class FlowBuilder<Attributes> {
 
   action(action: FlowAction<Attributes>): FlowActionId {
     const actionId = hash(action.toString());
-    this.actions[actionId] = action;
+    this.nodeActions[actionId] = action;
 
     return actionId;
   }
 
+  actions(...actions: FlowAction<Attributes>[]): FlowActionId[] {
+    return actions.map(action => this.action(action));
+  }
+
   cleanup(cleanup: FlowCleanup): FlowCleanupId {
     const cleanupId = hash(cleanup.toString());
-    this.cleanups[cleanupId] = cleanup;
+    this.nodeCleanups[cleanupId] = cleanup;
 
     return cleanupId;
+  }
+
+  cleanups(...cleanups: FlowCleanup[]): FlowCleanupId[] {
+    return cleanups.map(cleanup => this.cleanup(cleanup));
   }
 
   build(actionRunner: (action: FlowActionId) => void, cleanupRunner: (cleanup: FlowCleanupId) => void): FlowBuilderOutput<Attributes> {
     return {
       flow: new Flow(this.nodes, actionRunner, cleanupRunner),
-      actions: this.actions,
-      cleanups: this.cleanups,
+      actions: this.nodeActions,
+      cleanups: this.nodeCleanups,
     }
   }
 }

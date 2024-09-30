@@ -24,11 +24,8 @@ export class FlowBuilder<Attributes> {
   private nodeActions: { [key: FlowActionId]: FlowAction<Attributes> } = {};
   private nodeCleanups: { [key: FlowCleanupId]: FlowCleanup } = {};
 
-  constructor() {}
-
   // TODO add convenience methods for defining nodes
-  // - method to build a node for each player
-  // - method to wrap an action as autoadvance
+  // - method to automatically call f.next()
   // - aliases for rounds, turns, etc.
 
   node(
@@ -45,12 +42,7 @@ export class FlowBuilder<Attributes> {
       }
     );
 
-    // TODO - this will break for leaf nodes at the top level
-    // don't record leaf nodes
-    // leaf nodes will be built from `children` references
-    if (children.length > 0) {
-      this.nodes.push(flowNode);
-    }
+    this.nodes.push(flowNode)
 
     return flowNode;
   }
@@ -78,10 +70,21 @@ export class FlowBuilder<Attributes> {
   }
 
   build(actionRunner: (action: FlowActionId) => void | Promise<void>, cleanupRunner: (cleanup: FlowCleanupId) => void): FlowBuilderOutput<Attributes> {
+    const nodes = this.getTopLevelNodes();
+    
     return {
-      flow: new Flow(this.nodes, actionRunner, cleanupRunner),
+      flow: new Flow(nodes, actionRunner, cleanupRunner),
       actions: this.nodeActions,
       cleanups: this.nodeCleanups,
     }
+  }
+
+  private getTopLevelNodes(): FlowNode[] {
+    // get all children nodes recursively
+    const getChildren = (node: FlowNode): FlowNode[] => node.children.length ? node.children.flatMap(getChildren) : [node];
+    const allChildren = this.nodes.flatMap(n => n.children).flatMap(getChildren);
+
+    // remove them from topLevelNodes
+    return this.nodes.filter(n => !allChildren.includes(n));
   }
 }

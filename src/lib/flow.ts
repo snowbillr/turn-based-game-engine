@@ -6,6 +6,7 @@ import { FlowContext, State } from './engine.js';
 export type FlowActionId = number;
 export type FlowCleanupId = number;
 
+// TODO - return a symbol from FlowAction to ensure that f.next() was the last thing called
 export type FlowAction<Attributes> = (
   state: State,
   f: FlowContext<Attributes>,
@@ -37,10 +38,9 @@ export class Flow {
     this.visitedNodeIds = [];
 
     const nodes = this.nodes.slice().reverse();
-    const currentNode = nodes[0];
 
     this.traversalStack.push(...nodes);
-    this.visitNode(currentNode);
+    this.visitNode(this.traversalStack.peek());
   }
 
  /*

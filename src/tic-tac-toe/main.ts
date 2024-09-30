@@ -17,6 +17,11 @@ const engine = new Engine({ players });
 
 const board = new Board();
 
+const WelcomeMessage: FlowAction<PlayerAttributes> = (state, f) => {
+  console.log('Welcome to Tic-Tac-Toe!')
+  f.next()
+}
+
 const RoundStart: FlowAction<PlayerAttributes> = (state, f) => {
   console.log('Round started');
   f.next()
@@ -51,7 +56,11 @@ const TurnStart = async (state: State, f: FlowContext<PlayerAttributes>) => {
   }
 }
 
-engine.defineFlow((f) => 
+engine.defineFlow((f) => {
+  f.node({
+    actions: f.actions(WelcomeMessage),
+  })
+
   f.node(
     {
       actions: f.actions(RoundStart),
@@ -63,6 +72,7 @@ engine.defineFlow((f) =>
       cleanups: f.cleanups(TurnEnd),
     })),
   )
-);
+});
 
 engine.start();
+

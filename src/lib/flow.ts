@@ -28,7 +28,7 @@ export class Flow {
 
   constructor(
     private nodes: FlowNode[],
-    private actionRunner: (action: FlowActionId) => void,
+    private actionRunner: (action: FlowActionId) => void | Promise<void>,
     private cleanupRunner: (cleanup: FlowCleanupId) => void) {}
 
   start() {
@@ -108,7 +108,7 @@ export class Flow {
 
   private runAction() {
     const actionId = this.actionIdQueue.pop();
-    if (actionId) this.actionRunner(actionId);
+    if (actionId) void this.actionRunner(actionId); // using `void` to ignore the promise - flow is executed through calls to the `next` method
   }
 
   private queueActionIds(actions: FlowActionId[]) {

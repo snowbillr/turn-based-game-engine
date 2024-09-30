@@ -77,7 +77,7 @@ export class FlowBuilder<Attributes> {
     return cleanups.map(cleanup => this.cleanup(cleanup));
   }
 
-  build(actionRunner: (action: FlowActionId) => void, cleanupRunner: (cleanup: FlowCleanupId) => void): FlowBuilderOutput<Attributes> {
+  build(actionRunner: (action: FlowActionId) => void | Promise<void>, cleanupRunner: (cleanup: FlowCleanupId) => void): FlowBuilderOutput<Attributes> {
     return {
       flow: new Flow(this.nodes, actionRunner, cleanupRunner),
       actions: this.nodeActions,

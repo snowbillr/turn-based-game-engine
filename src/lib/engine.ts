@@ -45,8 +45,6 @@ export class Engine<Attributes> {
     this.flow = flowBuilderOutput.flow;
     this.actions = flowBuilderOutput.actions;
     this.cleanups = flowBuilderOutput.cleanups;
-
-    console.log('Build flow', Object.keys(this.actions), Object.keys(this.cleanups))
   }
 
   start() {

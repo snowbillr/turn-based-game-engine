@@ -102,14 +102,12 @@ export class Flow {
 
   private leaveNode(node: FlowNode) {
     for (const cleanupId of node.cleanupIds) {
-      console.log('flow running cleanupid', cleanupId);
       this.cleanupRunner(cleanupId);
     }
   }
 
   private runAction() {
     const actionId = this.actionIdQueue.pop();
-    console.log('flow running actionid', actionId);
     if (actionId) this.actionRunner(actionId);
   }
 

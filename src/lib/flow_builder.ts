@@ -1,10 +1,11 @@
 import hash from 'hash-it';
+import { v7 as uuidv7 } from 'uuid';
 
 import { Flow, FlowAction, FlowActionId, FlowCleanup, FlowCleanupId } from './flow.js';
 import { FlowNode } from './flow_node.js';
 
 interface FlowBuilderNodeConfig {
-  id: string; // TODO - make optional and generate unique ids if missing
+  id?: string;
 
   playerId?: string;
 
@@ -35,7 +36,7 @@ export class FlowBuilder<Attributes> {
     children: FlowNode[] = [],
   ): FlowNode {
     const flowNode = new FlowNode(
-      config.id,
+      config.id ?? uuidv7(),
       children,
       {
         playerId: config.playerId,
@@ -44,6 +45,7 @@ export class FlowBuilder<Attributes> {
       }
     );
 
+    // TODO - this will break for leaf nodes at the top level
     // don't record leaf nodes
     // leaf nodes will be built from `children` references
     if (children.length > 0) {

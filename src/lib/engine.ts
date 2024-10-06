@@ -32,14 +32,9 @@ export class Engine<Attributes> {
     const flowBuilder = new FlowBuilder<Attributes>();
     flowFn(flowBuilder);
 
-    // TODO - should there be a flow executor class instead of them executing in the engine?
     const flowBuilderOutput = flowBuilder.build(
-      (actionId: FlowActionId) => this.actions[actionId](this.state, {
-        next: this.next.bind(this),
-        gameOver: this.gameOver.bind(this),
-        getCurrentPlayer: this.getCurrentPlayer.bind(this)
-      }),
-      (cleanupId: FlowCleanupId) => this.cleanups[cleanupId](this.state),
+      this.runAction.bind(this),
+      this.runCleanup.bind(this),
     );
 
     this.flow = flowBuilderOutput.flow;
@@ -71,5 +66,17 @@ export class Engine<Attributes> {
 
     const currentPlayerId = this.flow.currentNode().playerId;
     return this.players.find((p) => p.id === currentPlayerId);
+  }
+
+  private runAction(actionId: FlowActionId) {
+    void this.actions[actionId](this.state, {
+      next: this.next.bind(this),
+      gameOver: this.gameOver.bind(this),
+      getCurrentPlayer: this.getCurrentPlayer.bind(this)
+    });
+  }
+
+  private runCleanup(cleanupId: FlowCleanupId) {
+    this.cleanups[cleanupId](this.state);
   }
 }

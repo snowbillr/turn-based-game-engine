@@ -12,7 +12,7 @@ export type FlowAction<Attributes> = (
   f: FlowContext<Attributes>,
 ) => void | Promise<void>;
 
-export type FlowCleanup = (state: State) => void;
+export type FlowCleanup<Attributes> = (state: State, f: FlowContext<Attributes>) => void;
 
 /*
   The flow of the game is defined as a tree of nodes.
@@ -26,11 +26,12 @@ export class Flow {
   private visitedNodeIds: string[] = [];
 
   private actionIdQueue = new Queue<FlowActionId>();
+  private cleanupIdQueue = new Queue<FlowCleanupId>();
 
   constructor(
     private nodes: FlowNode[],
     private actionRunner: (action: FlowActionId) => void | Promise<void>,
-    private cleanupRunner: (cleanup: FlowCleanupId) => void) {}
+    private cleanupRunner: (cleanup: FlowCleanupId) => void | Promise<void>) {}
 
   start() {
     if (this.nodes.length === 0) throw new Error('Cannot start flow with no nodes');
@@ -60,33 +61,55 @@ export class Flow {
       return;
     }
 
-    const previous = this.traversalStack.peek();
-
-    if (previous.children.length > 0) {
-      this.traversalStack.push(...previous.children.slice().reverse());
-      this.visitNode(this.currentNode());
+    if (this.cleanupIdQueue.size() > 0) {
+      this.runCleanup();
       return;
+    }
+
+    const current = this.traversalStack.peek();
+
+    if (this.hasVisitedNode(current)) {
+      this.leaveNode(current);
     } else {
+      this.visitNode(current);
+    }
+
+    // go to the next node on the stack
+
+    // if we've entered the `current` node, leave it
+    //   either descend if children or pop if none
+    // if we haven't entered the `current` node, visit it
+
+    // if (current.children.length > 0) {
+    //   this.visitNode(this.currentNode());
+    //   return;
+    // } else {
       // We know better than TypeScript here that the stack is not empty
       // because of the `size` check at the top of `next`.
-      this.leaveNode(this.traversalStack.pop()!);
-      if (this.traversalStack.size() === 0) {
-        this.start();
-        return;
-      }
+      // this.leaveNode(this.traversalStack.pop()!);
+      // if (this.traversalStack.size() === 0) {
+      //   this.start();
+      //   return;
+      // }
 
-      while (this.hasVisitedNode(this.currentNode())) {
-        // We know better than TypeScript here that the stack is not empty
-        // because of the `size` check before this while loop
-        this.leaveNode(this.traversalStack.pop()!);
-        if (this.traversalStack.size() === 0) {
-          this.start();
-          return;
-        }
-      }
+      // while (this.hasVisitedNode(this.currentNode())) {
+      //   // We know better than TypeScript here that the stack is not empty
+      //   // because of the `size` check before this while loop
+      //   this.leaveNode(this.traversalStack.pop()!);
+      //   if (this.traversalStack.size() === 0) {
+      //     this.start();
+      //     return;
+      //   }
+      // }
 
-      this.visitNode(this.currentNode());
-    }
+      // this.visitNode(this.currentNode());
+    // }
+  }
+
+  // is this only ever called in cleanup?
+  repeat() {
+    // stop traversing upwards and redo pushing the current node's children on the stack and visiting it
+    // remove it from visited nodes
   }
 
   currentNode(): FlowNode {
@@ -96,13 +119,30 @@ export class Flow {
   private visitNode(node: FlowNode) {
     this.visitedNodeIds.push(node.id);
 
-    this.queueActionIds(node.actionIds);
-    this.runAction();
+    if (node.children.length > 0) {
+      this.traversalStack.push(...node.children.slice().reverse());
+    }
+
+    // TODO - if there are no actions, call next()
+    if (node.actionIds.length === 0) {
+      this.next();
+    } else {
+      this.queueActionIds(node.actionIds);
+      this.runAction();
+    }
   }
 
   private leaveNode(node: FlowNode) {
-    for (const cleanupId of node.cleanupIds) {
-      this.cleanupRunner(cleanupId);
+    this.traversalStack.pop();
+    // TODO - if there are no cleanups, call next()
+    // for (const cleanupId of node.cleanupIds) {
+    //   this.cleanupRunner(cleanupId);
+    // }
+    if (node.cleanupIds.length === 0) {
+      this.next();
+    } else {
+      this.queueCleanupIds(node.cleanupIds);
+      this.runCleanup();
     }
   }
 
@@ -111,8 +151,17 @@ export class Flow {
     if (actionId) void this.actionRunner(actionId); // using `void` to ignore the promise - flow is executed through calls to the `next` method
   }
 
-  private queueActionIds(actions: FlowActionId[]) {
-    this.actionIdQueue.push(...actions);
+  private runCleanup() {
+    const cleanupId = this.cleanupIdQueue.pop();
+    if (cleanupId) void this.cleanupRunner(cleanupId); // using `void` to ignore the promise - flow is executed through calls to the `next` method
+  }
+
+  private queueActionIds(actionIds: FlowActionId[]) {
+    this.actionIdQueue.push(...actionIds);
+  }
+
+  private queueCleanupIds(cleanupIds: FlowCleanupId[]) {
+    this.cleanupIdQueue.push(...cleanupIds);
   }
 
   private hasVisitedNode(node: FlowNode) {

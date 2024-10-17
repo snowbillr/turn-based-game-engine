@@ -16,13 +16,16 @@ interface FlowBuilderNodeConfig {
 interface FlowBuilderOutput<Attributes> {
   flow: Flow;
   actions: { [key: FlowActionId]: FlowAction<Attributes> };
-  cleanups: { [key: FlowCleanupId]: FlowCleanup };
+  cleanups: { [key: FlowCleanupId]: FlowCleanup<Attributes> };
 }
 
 export class FlowBuilder<Attributes> {
   private nodes: FlowNode[] = [];
+  // TODO - its very easy to pass an action into a cleanup and vice versa, need to make this harder to do
+  //  - maybe there's no need to separate them conceptually?
+  //  - maybe have a more distinct type for each?
   private nodeActions: { [key: FlowActionId]: FlowAction<Attributes> } = {};
-  private nodeCleanups: { [key: FlowCleanupId]: FlowCleanup } = {};
+  private nodeCleanups: { [key: FlowCleanupId]: FlowCleanup<Attributes> } = {};
 
   // TODO add convenience methods for defining nodes
   // - method to automatically call f.next()
@@ -58,14 +61,14 @@ export class FlowBuilder<Attributes> {
     return actions.map(action => this.action(action));
   }
 
-  cleanup(cleanup: FlowCleanup): FlowCleanupId {
+  cleanup(cleanup: FlowCleanup<Attributes>): FlowCleanupId {
     const cleanupId = hash(cleanup.toString());
     this.nodeCleanups[cleanupId] = cleanup;
 
     return cleanupId;
   }
 
-  cleanups(...cleanups: FlowCleanup[]): FlowCleanupId[] {
+  cleanups(...cleanups: FlowCleanup<Attributes>[]): FlowCleanupId[] {
     return cleanups.map(cleanup => this.cleanup(cleanup));
   }
 

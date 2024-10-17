@@ -26,15 +26,16 @@ const RoundStart: FlowAction<PlayerAttributes> = (state, f) => {
   console.log('Round started');
   f.next()
 }
-const RoundEnd: FlowCleanup = () => console.log('Round ended')
-
-const TurnEnd: FlowCleanup = () => {
-  console.log('Turn ended.');
+const RoundEnd: FlowCleanup<PlayerAttributes> = (state, f) => {
+  console.log('Round ended')
+  f.next()
 }
 
-// TODO make FlowAction type work with async functions
-// may be better to make convenience methods in `FlowBuilder` first
-// const TurnStart: FlowAction<PlayerAttributes> = async (state, f) => {
+const TurnEnd: FlowCleanup<PlayerAttributes> = (state, f) => {
+  console.log('Turn ended.');
+  f.next()
+}
+
 const TurnStart = async (state: State, f: FlowContext<PlayerAttributes>) => {
   console.log(`Turn started for ${f.getCurrentPlayer()!.attributes.name}`);
 
@@ -56,6 +57,11 @@ const TurnStart = async (state: State, f: FlowContext<PlayerAttributes>) => {
   }
 }
 
+const TestLog: FlowCleanup<PlayerAttributes> = (state, f) => {
+  console.log('Test log');
+  f.next()
+}
+
 engine.defineFlow((f) => {
   f.node({
     actions: f.actions(WelcomeMessage),
@@ -64,7 +70,7 @@ engine.defineFlow((f) => {
   f.node(
     {
       actions: f.actions(RoundStart),
-      cleanups: f.cleanups(RoundEnd),
+      cleanups: f.cleanups(RoundEnd, TestLog),
     },
     players.map(player => f.node({
       playerId: player.id,

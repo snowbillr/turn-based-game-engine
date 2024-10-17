@@ -12,7 +12,10 @@ export type FlowAction<Attributes> = (
   f: FlowContext<Attributes>,
 ) => void | Promise<void>;
 
-export type FlowCleanup<Attributes> = (state: State, f: FlowContext<Attributes>) => void;
+export type FlowCleanup<Attributes> = (
+  state: State,
+  f: FlowContext<Attributes>
+) => void | Promise<void>;
 
 /*
   The flow of the game is defined as a tree of nodes.
@@ -73,37 +76,6 @@ export class Flow {
     } else {
       this.visitNode(current);
     }
-
-    // go to the next node on the stack
-
-    // if we've entered the `current` node, leave it
-    //   either descend if children or pop if none
-    // if we haven't entered the `current` node, visit it
-
-    // if (current.children.length > 0) {
-    //   this.visitNode(this.currentNode());
-    //   return;
-    // } else {
-      // We know better than TypeScript here that the stack is not empty
-      // because of the `size` check at the top of `next`.
-      // this.leaveNode(this.traversalStack.pop()!);
-      // if (this.traversalStack.size() === 0) {
-      //   this.start();
-      //   return;
-      // }
-
-      // while (this.hasVisitedNode(this.currentNode())) {
-      //   // We know better than TypeScript here that the stack is not empty
-      //   // because of the `size` check before this while loop
-      //   this.leaveNode(this.traversalStack.pop()!);
-      //   if (this.traversalStack.size() === 0) {
-      //     this.start();
-      //     return;
-      //   }
-      // }
-
-      // this.visitNode(this.currentNode());
-    // }
   }
 
   // is this only ever called in cleanup?
@@ -123,7 +95,6 @@ export class Flow {
       this.traversalStack.push(...node.children.slice().reverse());
     }
 
-    // TODO - if there are no actions, call next()
     if (node.actionIds.length === 0) {
       this.next();
     } else {
@@ -134,10 +105,7 @@ export class Flow {
 
   private leaveNode(node: FlowNode) {
     this.traversalStack.pop();
-    // TODO - if there are no cleanups, call next()
-    // for (const cleanupId of node.cleanupIds) {
-    //   this.cleanupRunner(cleanupId);
-    // }
+
     if (node.cleanupIds.length === 0) {
       this.next();
     } else {

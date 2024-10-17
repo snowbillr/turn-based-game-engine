@@ -86,7 +86,7 @@ export class Engine<Attributes> {
   }
 
   private runCleanup(cleanupId: FlowCleanupId) {
-    this.cleanups[cleanupId](this.state, {
+    void this.cleanups[cleanupId](this.state, {
       next: this.next.bind(this),
       gameOver: this.gameOver.bind(this),
       getCurrentPlayer: this.getCurrentPlayer.bind(this)
